@@ -12,9 +12,11 @@ myState.preload = function() {
 
 	Kiwi.State.prototype.preload.call( this );
 
+    //load all images
 	this.addSpriteSheet( "characterSprite", "character.png", 36, 36 );
+    this.addImage( "goalSprite", "goal.png" );
+    this.addImage( "obstacleSprite", "obstacle.png" );
     this.addImage( "background", "background.png" );
-	this.addImage( "obstacle", "obstacle.png" );
 
 };
 
@@ -37,14 +39,22 @@ myState.create = function(){
 
 	this.background = new Kiwi.GameObjects.StaticImage( this, this.textures.background, 0, 0 );
 	this.character = new Kiwi.GameObjects.Sprite( this, this.textures.characterSprite, 0, 0 );
+    this.goal = new Kiwi.GameObjects.Sprite( this, this.textures.goalSprite, 2*36, 8*36 );
     this.obstacleGroup = new Kiwi.Group( this );
+
+    this.textField = new Kiwi.GameObjects.Textfield(this, '');
+    this.textField.x = this.game.stage.width / 2;
+    this.textField.y = 10;
+    this.textField.color = '#FFFFFF';
+    this.textField.fontFamily = 'Roboto, sans-serif';
+    this.textField.textAlign = Kiwi.GameObjects.Textfield.TEXT_ALIGN_CENTER;
 
     for(var row=0; row<10; row++) {
         for(var col=0; col<10; col++) {
             if(obstacleMap[row][col] == 1) {
                 console.log("row: "+row+" col: "+col);
                 this.obstacleGroup.addChild( new Kiwi.GameObjects.Sprite(
-                    this, this.textures.obstacle, col*36, row*36));
+                    this, this.textures.obstacleSprite, col*36, row*36));
             }
         }
     }
@@ -66,7 +76,9 @@ myState.create = function(){
     
     this.addChild(this.background);
     this.addChild(this.character);
+    this.addChild(this.goal);
     this.addChild(this.obstacleGroup);
+    this.addChild(this.textField);
 
 };
 
@@ -74,7 +86,7 @@ myState.update = function() {
 
 	Kiwi.State.prototype.update.call( this );
 
-	//solo registra entradas cuando o se esta moviendo el personaje
+	//Only registers inputs when the character is idle
 	if ( this.facing == 'idle' ) {
 		if ( this.downKey.isDown ) {
 	        if ( this.character.animation.currentAnimation.name != ( 'down' )) {
@@ -101,7 +113,7 @@ myState.update = function() {
 	        this.facing = 'right';
 	    }
 	}
-	//se mueve hasta chocar con un obstaculo
+	//moves while the status is not idle
     else if ( this.facing == 'down' ) {
         this.character.transform.y += this.velocity;
     }
@@ -114,13 +126,15 @@ myState.update = function() {
     else if ( this.facing == 'right' ) {
         this.character.transform.x += this.velocity;
     }
+
+    //Check all colisions
     this.checkColision();
     
 };
 
 myState.checkColision = function() {
 
-    //check colision with boundaries
+    //check colision with wall limits
     if ( this.character.transform.y > 324 ) {
         this.character.transform.y = 324;
         this.facing = 'idle';
@@ -141,9 +155,22 @@ myState.checkColision = function() {
         this.facing = 'idle';
         this.character.animation.play( 'idle' );
     }
+
+    //temporal box object to detect colision with obstacles and goal
+    var characterBox = this.character.box.bounds;
+
+    //check colision with goal
+    if( this.goal.box.bounds.intersects(characterBox) ) {
+        this.facing = 'stop';
+        this.character.animation.play('idle');
+        this.textField.text = 'You win!!!';
+        this.character.x = this.goal.x;
+        this.character.y = this.goal.y;
+        this.goal.destroy();
+    }
+
     //check colision with obstacles
     var obstacles = this.obstacleGroup.members;
-    var characterBox = this.character.box.bounds;
     for(var n=0; n<obstacles.length; n++) {
         if(obstacles[n].box.bounds.intersects(characterBox)){
             console.log("true");
@@ -168,4 +195,5 @@ myState.checkColision = function() {
 
 game.states.addState( myState );
 
+//start game
 game.states.switchState( 'myState' );
